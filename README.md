@@ -19,7 +19,9 @@ python -m pip install -U pip
 python -m pip install -r requirements.txt
 ```
 
-The code can either generate a small synthetic panel for a smoke test or load the released CSV snapshot described by `Data README.md`. The snapshot is synthetic only and contains no real meter or person records.
+The code can either generate a small synthetic panel for a smoke test or load the released synthetic panel deposited on [Zenodo](https://doi.org/10.5281/zenodo.22840493). The dataset contains no real meter or person records.
+
+The Zenodo deposit provides monthly electricity, water, and gas readings for 1,000 premises over 36 months, together with household population trajectories, metadata, and realised population change events. It is the data source associated with the manuscript and is released under the licence stated in the deposit.
 
 ## Run the smoke example
 
@@ -37,7 +39,7 @@ To use the released data snapshot, place the four CSV files in one directory and
 python run_demo.py --data-dir path/to/data
 ```
 
-The loader expects exactly the files and schema documented in `Data README.md`: 1,000 households, 36 zero-based months from 2019-01 through 2021-12, 36,000 monthly records, 1,516 event rows, and 1,000 population trajectories. It validates dates, field names, population labels, event signs, missing reads, and consistency between the monthly and wide trajectory tables before analysis.
+The loader expects the four CSV files supplied with the Zenodo dataset: 1,000 households, 36 zero-based months from 2019-01 through 2021-12, 36,000 monthly records, 1,516 event rows, and 1,000 population trajectories. It validates dates, field names, population labels, event signs, missing reads, and consistency between the monthly and wide trajectory tables before analysis.
 
 ## Module map
 
