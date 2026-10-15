@@ -1,10 +1,10 @@
 {
-  "n_households": 240,
+  "n_households": 1000,
   "n_months": 36,
-  "seed": 17,
+  "seed": 42,
   "regime": "R1_linear",
   "event_start_month_min": 14,
   "event_followup_months": 6,
   "task_c_tolerance_months": 6,
-  "notes": "Example values for a compact synthetic run; replace with a declared protocol before reporting results."
+  "notes": "Matches the released R1 snapshot described in Data README.md. run_demo.py without --data-dir still uses a smaller smoke panel."
 }

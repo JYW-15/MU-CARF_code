@@ -19,7 +19,7 @@ python -m pip install -U pip
 python -m pip install -r requirements.txt
 ```
 
-The code uses synthetic electricity, water, and gas readings. No network connection, GPU, or external data file is required.
+The code can either generate a small synthetic panel for a smoke test or load the released CSV snapshot described by `Data README.md`. The snapshot is synthetic only and contains no real meter or person records.
 
 ## Run the smoke example
 
@@ -29,7 +29,15 @@ From this directory:
 python run_demo.py
 ```
 
-The command generates a small panel, fits the screening and regression components, fits MU-CARF on training households, applies the past-only filter to one held-out series, prints a summary, and writes `outputs/demo_summary.json`. The smoke run is intended to complete in seconds; it is not the manuscript-scale confirmation run.
+The command generates a 120-household, 24-month panel, fits the screening and regression components, fits MU-CARF on training households, applies the past-only filter to one held-out series, prints a summary, and writes `outputs/demo_summary.json`. This is a smoke test, not the manuscript-scale confirmation run.
+
+To use the released data snapshot, place the four CSV files in one directory and run:
+
+```bash
+python run_demo.py --data-dir path/to/data
+```
+
+The loader expects exactly the files and schema documented in `Data README.md`: 1,000 households, 36 zero-based months from 2019-01 through 2021-12, 36,000 monthly records, 1,516 event rows, and 1,000 population trajectories. It validates dates, field names, population labels, event signs, missing reads, and consistency between the monthly and wide trajectory tables before analysis.
 
 ## Module map
 
@@ -46,12 +54,14 @@ The public API is designed for inspection and adaptation. The default example se
 
 ## Inputs and outputs
 
-Core functions receive pandas DataFrames or NumPy arrays. The generator returns a `Panel` with:
+Core functions receive pandas DataFrames or NumPy arrays. `src.data_io.load_csv_panel()` maps the documented CSV files to the same `Panel` interface returned by the synthetic generator:
 
 - `meta`: one row per household and its synthetic type;
 - `monthly`: one row per household-month with electricity, water, gas, and true population;
 - `population`: the latent population matrix;
 - `events`: realised signed population transitions.
+
+The monthly CSV additionally contains `date`; metadata contains shared-meter fields; and the wide trajectory contains `household_id` plus `month_0` ... `month_35`. Building type `mixed` is the code value corresponding to the README's “mixed-use” composition label.
 
 Analysis functions return dataclasses or arrays. MU-CARF returns signed alarms (`-1`, `0`, `+1`), posterior state probabilities, state means, and abstention flags. See function signatures and type names in `src/` for the exact schema.
 
