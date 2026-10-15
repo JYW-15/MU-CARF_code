@@ -1,6 +1,6 @@
 # MU-CARF reference code
 
-This repository contains the compact reference implementation accompanying the Scientific Reports manuscript **MU-CARF: an auditable relative-population filter for multi-utility household monitoring**. It exposes the core synthetic-data workflow and the main algorithms needed to inspect the paper: building-type screening (Task A), household population estimation (Task B), past-only change detection (Task C), and the calendar-adjusted relative-state MU-CARF filter.
+This repository contains the compact reference implementation accompanying the manuscript **MU-CARF: an auditable relative-population filter for multi-utility household monitoring**. It exposes the core synthetic-data workflow and the main algorithms needed to inspect the paper: building-type screening (Task A), household population estimation (Task B), past-only change detection (Task C), and the calendar-adjusted relative-state MU-CARF filter.
 
 The release is intentionally small. It contains algorithmic modules, a synthetic generator, a runnable smoke example, an example configuration, and no manuscript figures, logs, cached bytecode, private records, exploratory probes, or precomputed result tables.
 
