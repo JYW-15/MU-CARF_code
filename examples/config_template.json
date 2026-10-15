@@ -1,0 +1,10 @@
+{
+  "n_households": 240,
+  "n_months": 36,
+  "seed": 17,
+  "regime": "R1_linear",
+  "event_start_month_min": 14,
+  "event_followup_months": 6,
+  "task_c_tolerance_months": 6,
+  "notes": "Example values for a compact synthetic run; replace with a declared protocol before reporting results."
+}
