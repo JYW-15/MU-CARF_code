@@ -1,6 +1,6 @@
 # Synthetic input schema
 
-`src.data_io.load_csv_panel()` reads the four CSV files released with the synthetic dataset and validates the declared R1 snapshot before returning the common `Panel` interface. The dataset is available from [Zenodo](https://doi.org/10.5281/zenodo.22840493).
+`src.data_io.load_csv_panel()` reads the four CSV files released with the synthetic dataset and validates the declared R1 snapshot before returning the common `Panel` interface. The dataset is available in the Zenodo repository at https://doi.org/10.5281/zenodo.22840493.
 
 ## Required files
 
