@@ -19,9 +19,9 @@ python -m pip install -U pip
 python -m pip install -r requirements.txt
 ```
 
-The code can either generate a small synthetic panel for a smoke test or load the released synthetic panel deposited in the Zenodo repository at https://doi.org/10.5281/zenodo.22840493. The dataset contains no real meter or person records.
+The code can either generate a small synthetic panel for a smoke test or load the released synthetic panel deposited in the Zenodo repository at https://doi.org/10.5281/zenodo.22840493. 
 
-The Zenodo repository (https://doi.org/10.5281/zenodo.22840493) provides monthly electricity, water, and gas readings for 1,000 premises over 36 months, together with household population trajectories, metadata, and realised population change events. It is the data source associated with the manuscript and is released under the licence stated in the repository.
+The dataset provides monthly electricity, water, and gas readings for 1,000 premises over 36 months, together with household population trajectories, metadata, and realised population change events. It is the data source associated with the manuscript and is released under the licence stated in the repository.
 
 ## Run the smoke example
 
