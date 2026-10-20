@@ -10,3 +10,7 @@
 - `population_trajectory.csv`: 1,000 rows with `household_id` followed by `month_0` ... `month_35`.
 
 The released snapshot uses `residential`, `vacant`, `commercial`, and `mixed` as `true_type` values. `mixed` is the code value for the mixed-use composition category. In this R1 snapshot all meter reads are present and all shared-meter fields indicate no sharing. Population labels and event rows are required for supervised evaluation; the online detector itself only consumes past utility readings after fitting.
+
+## Missing reads
+
+Missing meter readings are kept as `NaN` and are never imputed at load time, so that each detector applies its own declared rule. The online detectors use `_clean_causal`, which carries the last observed value forward across an interior gap and leaves a leading gap unfilled; the explicitly retrospective comparator uses `_clean_retrospective`, which interpolates in both directions, and is reported only as such. Because this snapshot is the complete-read R1 release, the loader rejects missing reads as a departure from the declared snapshot; the missing-read paths are exercised with a panel generated in the R5 stress regime, where 8% of reads are absent and 5% of premises share a meter. `python run_checks.py` verifies the past-only rule on the screening and detection stages; see the README section “Non-anticipation checks”.

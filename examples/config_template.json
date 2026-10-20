@@ -6,5 +6,60 @@
   "event_start_month_min": 14,
   "event_followup_months": 6,
   "task_c_tolerance_months": 6,
-  "notes": "Matches the released R1 snapshot described in Data README.md. run_demo.py without --data-dir still uses a smaller smoke panel."
+  "data": {
+    "n_households": 1000,
+    "n_months": 36,
+    "start_year": 2019,
+    "seed": 42,
+    "regime": "R1_linear",
+    "event_start_month_min": 14,
+    "event_followup_months": 6
+  },
+  "task_a": {
+    "seed": 42,
+    "n_bootstrap": 50,
+    "k_candidates": [2, 3, 4, 5, 6, 7, 8],
+    "n_init": 10,
+    "test_size": 0.3
+  },
+  "task_b": {
+    "seed": 42,
+    "n_bootstrap": 2000,
+    "omega_grid": [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+    "test_size": 0.2,
+    "n_cv_splits": 5
+  },
+  "task_c": {
+    "seed": 42,
+    "tolerance_months": 6,
+    "tolerance_sensitivity_months": [1, 3, 6],
+    "dev_fraction": 0.4,
+    "monitoring_start_month": 12,
+    "n_bootstrap": 500,
+    "n_random_baseline": 200,
+    "persistence": 2
+  },
+  "mucarf": {
+    "state_radius": 3,
+    "baseline_end": 14,
+    "max_step": 2,
+    "tau_selected_at_months": 1
+  },
+  "cusum": {
+    "warmup": 6,
+    "k": 0.5,
+    "h": 4.0,
+    "threshold_search": false
+  },
+  "seed_sets": {
+    "regime_sweep_and_cascade_replication": [42, 43, 44, 45, 46],
+    "internal_validation": [2001, 2002, 2003, 2004, 2005],
+    "final_confirmation": [3001, 3002, 3003, 3004, 3005, 3006, 3007, 3008, 3009, 3010]
+  },
+  "notes": [
+    "These are the declared study values, not the demonstration defaults in src/config.py; see README.md, section 'Reproducing the published values'.",
+    "The data block matches the released R1 snapshot described in data_schema.md. run_demo.py without --data-dir uses a smaller 120-household, 24-month smoke panel instead.",
+    "Baseline detectors select their threshold at task_c.tolerance_months and are scored there; MU-CARF selects its threshold at the one-month endpoint and MU-CARF rows are scored at tolerance 1. Rows must not be compared across tolerances.",
+    "The CUSUM comparator uses fixed parameters instead of a development-set threshold search."
+  ]
 }

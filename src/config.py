@@ -1,4 +1,15 @@
-"""Configuration for the synthetic multi-utility experiments."""
+"""Configuration for the synthetic multi-utility experiments.
+
+Defaults in this module are deliberately small, low-cost demonstration values so that
+``run_demo.py`` finishes in a couple of minutes. They are *not* the declared study configuration.
+The values that reproduce the published single-seed results are listed in README.md
+("Reproducing the published values"), and the constants below record them where a
+demo default differs: panel size 1,000 households, primary seed 42, threshold-selection
+split seed 42, 500 paired household bootstraps for MU-CARF versus CABL, 200
+support-matched randomizations, 2,000 household-clustered bootstrap replicates for the
+Task B MAE intervals, and the seed sets (42--46), (2001--2005) and (3001--3010) for the
+cascade replication, internal validation and final confirmation.
+"""
 from dataclasses import dataclass, field
 from typing import Dict, Optional, Tuple
 __all__ = ['GENERATOR_REGIMES', 'BUILDING_TYPES', 'FEATURE_NAMES', 'FEATURE_GROUPS', 'DataConfig', 'TaskAConfig', 'TaskBConfig', 'TaskCConfig', 'RobustnessConfig', 'CascadeReplicationConfig', 'CalendarStressConfig', 'PipelineConfig']
@@ -11,7 +22,12 @@ FEATURE_GROUPS: Dict[str, Tuple[int, ...]] = {'Basic means': (0, 1, 2), 'Dispers
 
 @dataclass(frozen=True)
 class DataConfig:
-    """Public class: DataConfig."""
+    """Public class: DataConfig.
+
+    Demo default: 240 households, seed 17. The declared study panel is
+    ``DataConfig(n_households=1000, n_months=36, seed=42, regime='R1_linear')``.
+    """
+
     n_households: int = 240
     n_months: int = 36
     start_year: int = 2019
@@ -22,7 +38,13 @@ class DataConfig:
 
 @dataclass(frozen=True)
 class TaskAConfig:
-    """Public class: TaskAConfig."""
+    """Public class: TaskAConfig.
+
+    ``seed`` drives the 70/30 stratified household split, the K-means initialisation and
+    the bootstrap refits, so it changes every Task A value. The declared study split uses
+    ``seed=42``; the demo default (17) gives a different split and is not the study result.
+    """
+
     k_candidates: Tuple[int, ...] = (2, 3, 4, 5, 6, 7, 8)
     k_selected: Optional[int] = None
     test_size: float = 0.3
@@ -32,7 +54,14 @@ class TaskAConfig:
 
 @dataclass(frozen=True)
 class TaskBConfig:
-    """Public class: TaskBConfig."""
+    """Public class: TaskBConfig.
+
+    ``n_bootstrap`` sizes the household-clustered MAE intervals. The study used 2,000
+    replicates; the demo default (50) gives the same point estimates with noisier
+    interval endpoints. ``seed`` drives the 80/20 grouped household split and the inner
+    validation split used to select omega; the study uses ``seed=42``.
+    """
+
     window_months: int = 12
     window_stride: int = 1
     test_size: float = 0.2
@@ -44,7 +73,18 @@ class TaskBConfig:
 
 @dataclass(frozen=True)
 class TaskCConfig:
-    """Public class: TaskCConfig."""
+    """Public class: TaskCConfig.
+
+    ``tolerance_months`` is the declared operating point at which every detector's
+    threshold is selected on the development households and at which the main comparison
+    table is evaluated (six months in the study). ``tolerance_sensitivity_months`` only
+    re-scores the fixed alarm vectors at other delays. MU-CARF's own threshold is selected
+    separately at the one-month endpoint; see ``mucarf_experiment.run_mucarf_experiment``.
+
+    ``seed`` drives the 40/60 development/test household split, so it must be given
+    explicitly when reproducing a specific run (the study uses 42).
+    """
+
     window: int = 3
     tolerance_months: int = 6
     tolerance_sensitivity_months: Tuple[int, ...] = (1, 3, 6)
@@ -96,21 +136,36 @@ class TaskCConfig:
 
 @dataclass(frozen=True)
 class RobustnessConfig:
-    """Public class: RobustnessConfig."""
+    """Public class: RobustnessConfig.
+
+    Demo default: two seeds. The study's five-regime component sweep uses
+    ``seeds=(42, 43, 44, 45, 46)``; the internal-validation cells use (2001--2005).
+    """
+
     seeds: Tuple[int, ...] = (17, 18)
     regimes: Tuple[str, ...] = tuple(GENERATOR_REGIMES)
     n_households: int = 240
 
 @dataclass(frozen=True)
 class CascadeReplicationConfig:
-    """Public class: CascadeReplicationConfig."""
+    """Public class: CascadeReplicationConfig.
+
+    Demo default: two seeds. The complete-cascade replication in the study uses
+    ``seeds=(42, 43, 44, 45, 46)`` with 1,000 R1 households per seed.
+    """
+
     seeds: Tuple[int, ...] = (17, 18)
     n_households: int = 240
     regime: str = 'R1_linear'
 
 @dataclass(frozen=True)
 class CalendarStressConfig:
-    """Public class: CalendarStressConfig."""
+    """Public class: CalendarStressConfig.
+
+    Demo default: two seeds. The calendar-adjusted regime sweep in the study re-fits the
+    complete 1,000-household cascade at ``regime_seed=42`` in each of the five regimes.
+    """
+
     seeds: Tuple[int, ...] = (17, 18)
     regimes: Tuple[str, ...] = tuple(GENERATOR_REGIMES)
     regime_seed: int = 17

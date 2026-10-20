@@ -9,11 +9,11 @@ from .task_a_screening import TaskAResult
 from .task_c_detection import CAL_NAME, _bootstrap_event_ci, _random_timing_reference, match_events, run_task_c
 MUCARF_NAME = 'MU-CARF relative-state filter'
 MUCARF_RANDOM_NAME = 'Random timing (MU-CARF matched)'
-SOFT_GATE_NAME = 'MU-CARF (soft occupied gate)'
-COVARIANCE_NAME = 'Covariance-aware calendar difference'
+SOFT_GATE_NAME = 'MU-CARF, soft gate'
+COVARIANCE_NAME = 'Covariance-aware first difference'
 COVARIANCE_RANDOM_NAME = 'Random timing (covariance-aware matched)'
-DIAGONAL_NAME = 'MU-CARF (diagonal covariance, hard gate)'
-HMM_NAME = 'Absolute-state HMM (standard control)'
+DIAGONAL_NAME = 'MU-CARF, diagonal covariance'
+HMM_NAME = 'Absolute-state HMM control'
 
 @dataclass
 class MUCarfExperimentResult:
@@ -94,10 +94,23 @@ def _detect_soft_for_households(series, household_ids: Sequence[int], occupied_p
     return alarms
 
 def run_mucarf_experiment(panel, task_a: TaskAResult, task_c_cfg: Optional[TaskCConfig]=None, tau_grid: Sequence[float]=tuple(np.linspace(0.05, 0.95, 19)), covariance_threshold_grid: Sequence[float]=(1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0), paired_bootstrap: Optional[int]=None, state_radius: int=3, max_step: int=2) -> MUCarfExperimentResult:
-    """Public function: run_mucarf_experiment."""
+    """MU-CARF against every declared comparator on one development/test split.
+
+    Threshold rules follow the declared protocol and are deliberately *not* identical
+    across detectors:
+
+    * The baselines (CABL, ratio, multi-signal, CUSUM) keep ``cfg.tolerance_months`` as
+      their operating point. Their thresholds are selected on the development households
+      at that tolerance and then held fixed, so ``baseline.summary`` is evaluated at that
+      tolerance.
+    * MU-CARF's posterior-jump threshold is selected at the one-month endpoint, which is
+      the primary endpoint of the study, so every MU-CARF, diagonal-covariance, soft-gate
+      and covariance-aware row here is scored with ``tolerance=1``.
+
+    Use ``tolerance_sensitivity`` for like-for-like comparisons across delays; do not
+    compare a baseline row with a MU-CARF row without checking the tolerance column.
+    """
     cfg = task_c_cfg or TaskCConfig()
-    if cfg.tolerance_months != 1:
-        cfg = replace(cfg, tolerance_months=1)
     grid = tuple((float(value) for value in tau_grid))
     if not grid or any((value < 0.0 or value > 1.0 for value in grid)):
         raise ValueError('tau_grid must contain probabilities in [0, 1]')
@@ -183,7 +196,9 @@ def run_mucarf_experiment(panel, task_a: TaskAResult, task_c_cfg: Optional[TaskC
     random_row = {'detector': MUCARF_RANDOM_NAME, 'online': True, **random_primary}
     covariance_random_primary = _random_timing_reference(covariance_alarms, eligible_masks, test_events, n_months, 1, cfg.n_random_baseline, cfg.seed + 41000, cfg.monitoring_start_month)
     covariance_random_row = {'detector': COVARIANCE_RANDOM_NAME, 'online': True, **covariance_random_primary}
-    summary = pd.concat([baseline.summary, pd.DataFrame([covariance_row, covariance_random_row, diagonal_row, hmm_row, soft_gate_row, mucarf_row, random_row])], ignore_index=True, sort=False)
+    extra_rows = pd.DataFrame([covariance_row, covariance_random_row, diagonal_row, hmm_row, soft_gate_row, mucarf_row, random_row]).assign(tolerance_months=1)
+    baseline_rows = baseline.summary.assign(tolerance_months=cfg.tolerance_months)
+    summary = pd.concat([baseline_rows, extra_rows], ignore_index=True, sort=False)
     sensitivity_rows = []
     for tolerance in sorted(set(cfg.tolerance_sensitivity_months + (1,))):
         observed = match_events(test_alarms, test_events, n_months, tolerance, cfg.monitoring_start_month)
@@ -208,6 +223,6 @@ def run_mucarf_experiment(panel, task_a: TaskAResult, task_c_cfg: Optional[TaskC
     for (index, (name, alarms)) in enumerate(comparison_alarms.items()):
         repetitions = primary_paired_bootstrap if name == CAL_NAME else cfg.n_bootstrap
         (difference, difference_low, difference_high) = _paired_bootstrap_f1_difference(test_alarms, alarms, test_events, n_months, 1, repetitions, cfg.seed + 50000 + index, cfg.monitoring_start_month)
-        paired_rows.append({'competitor': name, 'f1_difference': difference, 'f1_difference_ci_low': difference_low, 'f1_difference_ci_high': difference_high, 'n_households': len(test_hids), 'n_bootstrap': repetitions})
+        paired_rows.append({'competitor': name, 'tolerance_months': 1, 'f1_difference': difference, 'f1_difference_ci_low': difference_low, 'f1_difference_ci_high': difference_high, 'n_households': len(test_hids), 'n_bootstrap': repetitions})
     paired_comparisons = pd.DataFrame(paired_rows)
     return MUCarfExperimentResult(summary=summary, dev_selection=dev_selection, tolerance_sensitivity=tolerance_sensitivity, selected_tau=selected_tau, selected_soft_gate_tau=selected_soft_gate_tau, selected_covariance_threshold=selected_covariance_threshold, selected_diagonal_tau=selected_diagonal_tau, selected_hmm_tau=selected_hmm_tau, baseline_selected_theta=dict(baseline.selected_theta), model=model, dev_households=np.asarray(dev_hids, dtype=int), test_households=np.asarray(test_hids, dtype=int), training_households=training_hids, active_households=active_hids, test_alarms=test_alarms, paired_comparisons=paired_comparisons)

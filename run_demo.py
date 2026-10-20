@@ -28,10 +28,18 @@ def main(data_dir=None) -> None:
     calibration = panel.monthly[panel.monthly["month"] < 12]
     screen = run_task_a(household_features(calibration), panel.meta, cfg.task_a)
     windows = window_features(panel.monthly, cfg.task_b)
+    # Demo note: this smoke run fits Task B on every building type, including vacant and
+    # commercial premises whose population is identically zero. The study restricts the
+    # regression stage to occupied households (residential and mixed-use); pass
+    # `eligible_households=` with the occupied ids to reproduce that definition.
     regression = run_task_b(windows, cfg=cfg.task_b)
     train_ids = screen.is_test[~screen.is_test].index.to_numpy(dtype=int)
     occupied = panel.meta.set_index("household_id").loc[train_ids]
     train_ids = occupied.index[occupied["true_type"].isin({"residential", "mixed"})].to_numpy(dtype=int)
+    # Demo note: the 24-month smoke panel cannot support the study configuration, so the
+    # demonstration uses a 12-month calibration window and five relative states
+    # (state_radius=2 -> states -2..+2). The study uses calibration months 0-13
+    # (baseline_end=14), seven relative states (state_radius=3) and alarms from month 14.
     model = fit_mucarf(panel, train_ids, baseline_end=12, state_radius=2)
     test_id = int(train_ids[0])
     rows = panel.monthly[panel.monthly["household_id"] == test_id].sort_values("month")

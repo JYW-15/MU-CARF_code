@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from .config import TaskCConfig
 logger = logging.getLogger(__name__)
-__all__ = ['detect_ratio_causal', 'detect_multisignal_causal', 'detect_cusum_causal', 'detect_estimate_shift', 'retrospective_verify', 'match_events', 'learn_calendar_profile', 'detect_calendar_adjusted', 'split_task_c_households', 'TaskCResult', 'run_task_c']
+__all__ = ['detect_ratio_causal', 'detect_multisignal_causal', 'detect_cusum_causal', 'detect_estimate_shift', 'retrospective_verify', 'match_events', 'learn_calendar_profile', 'calendar_adjusted_scores', 'detect_calendar_adjusted', 'split_task_c_households', 'TaskCResult', 'run_task_c']
 
 def _clean_causal(x: np.ndarray) -> np.ndarray:
     """Public function: _clean_causal."""
@@ -75,7 +75,15 @@ def detect_multisignal_causal(elec: np.ndarray, water: np.ndarray, gas: np.ndarr
     return out
 
 def detect_cusum_causal(elec: np.ndarray, warmup: int=6, k: float=0.5, h: float=4.0) -> np.ndarray:
-    """Public function: detect_cusum_causal."""
+    """Past-only CUSUM reference detector on electricity.
+
+    Its three parameters are fixed declared constants rather than development-selected
+    thresholds: ``warmup`` months of history give the running mean and standard deviation,
+    ``k`` is the reference-value slack in standard deviations, and ``h`` is the decision
+    interval. Unlike the other comparators, this detector is therefore not tuned on the
+    development households, and it is reported as a declared baseline rather than as a
+    tuned operating point.
+    """
     e = _clean_causal(elec)
     out = np.zeros(len(e), dtype=int)
     hi = lo = 0.0
@@ -135,7 +143,13 @@ def apply_persistence(alarms: np.ndarray, min_consecutive: int=2) -> np.ndarray:
     return out
 
 def retrospective_verify(alarms: np.ndarray, elec: np.ndarray, water: np.ndarray, gas: np.ndarray, window: int=6, threshold: float=0.08) -> np.ndarray:
-    """Public function: retrospective_verify."""
+    """Retrospective composite verifier (never an online operating point).
+
+    An alarm survives only if the fixed-weight composite level moved in the alarm
+    direction. The confirmation reads the ``window`` months **after** the alarm and
+    refers them to the ``window`` months before it; the look-ahead half is what makes the
+    comparator retrospective, and it is reported separately from the online detectors.
+    """
     out = alarms.copy()
     comp = _clean_retrospective(elec) + 0.5 * _clean_retrospective(water) + 2.0 * _clean_retrospective(gas)
     for t in range(len(alarms)):
@@ -314,21 +328,51 @@ def learn_calendar_profile(panel, train_hids):
     sd = np.array([float(np.std(per_u[u])) for u in range(3)])
     return (g, sd)
 
-def detect_calendar_adjusted(elec: np.ndarray, water: np.ndarray, gas: np.ndarray, g: np.ndarray, sd: np.ndarray, tau: float) -> np.ndarray:
-    """Public function: detect_calendar_adjusted."""
+def calendar_adjusted_scores(elec: np.ndarray, water: np.ndarray, gas: np.ndarray, g: np.ndarray, sd: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    """Locked baseline and joint de-seasonalised score for the CABL detector.
+
+    Reads are forward-filled causally only. Months before the first observed read stay
+    missing and are therefore excluded from the locked household baseline instead of being
+    backfilled from a later value, so no future information reaches the score
+    (``src/checks.py`` verifies this). A utility without a finite calibration level is
+    dropped from the joint score rather than propagated as a missing value.
+    """
     L = np.column_stack([_clean_causal(np.asarray(elec, dtype=float)), _clean_causal(np.asarray(water, dtype=float)), _clean_causal(np.asarray(gas, dtype=float))])
-    for u in range(3):
-        finite = np.isfinite(L[:, u])
-        if finite.any() and (not finite[0]):
-            L[:int(np.argmax(finite)), u] = L[int(np.argmax(finite)), u]
     L = np.log(np.clip(L, 1e-09, None))
     n = L.shape[0]
     moy = np.arange(n) % 12 + 1
     d = L - g[:, moy - 1].T
-    b = d[:CAL_BASELINE_END].mean(axis=0)
-    z = ((d - b) / sd).sum(axis=1)
+    baseline = d[:CAL_BASELINE_END]
+    available = np.isfinite(baseline).any(axis=0)
+    b = np.full(3, np.nan, dtype=float)
+    if available.any():
+        b[available] = np.nanmean(baseline[:, available], axis=0)
+    z = np.zeros(n, dtype=float)
+    scored = np.zeros(n, dtype=bool)
+    for u in range(3):
+        if not available[u] or not np.isfinite(sd[u]) or sd[u] <= 0.0:
+            continue
+        contribution = (d[:, u] - b[u]) / sd[u]
+        finite = np.isfinite(contribution)
+        z[finite] += contribution[finite]
+        scored |= finite
+    z[~scored] = np.nan
+    return (b, z)
+
+def detect_calendar_adjusted(elec: np.ndarray, water: np.ndarray, gas: np.ndarray, g: np.ndarray, sd: np.ndarray, tau: float) -> np.ndarray:
+    """Calendar-adjusted baseline-locked (CABL) detector.
+
+    Scores the first difference of the joint de-seasonalised score against ``tau`` and
+    leaves the months before month 14 silent. See ``calendar_adjusted_scores`` for the
+    missing-read rule.
+    """
+    (_, z) = calendar_adjusted_scores(elec, water, gas, g, sd)
+    n = len(z)
     dz = np.diff(z, prepend=z[0])
-    a = np.where(np.abs(dz) > tau, np.sign(dz), 0).astype(int)
+    usable = np.isfinite(dz)
+    a = np.zeros(n, dtype=int)
+    a[usable & (dz > tau)] = 1
+    a[usable & (dz < -tau)] = -1
     a[:CAL_AT_RISK_START] = 0
     return a
 
@@ -339,13 +383,18 @@ def _calendar_adjusted_eligible_mask(n_months: int) -> np.ndarray:
     return m
 
 def split_task_c_households(panel, cfg: Optional[TaskCConfig]=None, eligible_households: Optional[Sequence[int]]=None) -> Tuple[np.ndarray, np.ndarray]:
-    """Public function: split_task_c_households."""
+    """Split the evaluation universe into development and test households.
+
+    ``eligible_households`` is required. Task C is defined on the households held out by
+    Task A (the 300-household evaluation set in the study), not on every occupied
+    household of the panel; defaulting to the whole panel would silently change the
+    development/test counts and every threshold selected from them.
+    """
     cfg = cfg or TaskCConfig()
     if eligible_households is None:
-        eligible = panel.meta.loc[panel.meta['true_type'].isin(['residential', 'mixed']), 'household_id'].values
-    else:
-        known = set((int(h) for h in panel.meta['household_id'].values))
-        eligible = np.array(sorted(set((int(h) for h in eligible_households)) & known), dtype=int)
+        raise ValueError('eligible_households is required: pass the households held out by Task A')
+    known = set((int(h) for h in panel.meta['household_id'].values))
+    eligible = np.array(sorted(set((int(h) for h in eligible_households)) & known), dtype=int)
     hids = np.array(sorted(set((int(h) for h in eligible))), dtype=int)
     if len(hids) < 2:
         raise ValueError('Task C requires at least two eligible households')
